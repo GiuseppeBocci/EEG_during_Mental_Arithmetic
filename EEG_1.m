@@ -13,7 +13,7 @@ load("filter_fir_teta_1.mat");
 % end
 
 %% band pass teta1
-EEG = signal1_2.P3;
+EEG = signal1_2.PZ;
 EEG = filtfilt(filter_fir_teta_1,1,EEG); % filtering
 
 N = length(EEG); 
@@ -31,7 +31,7 @@ ylabel('PSD [V^2*Hz^{-1}]')
 
 %% baseline
 
-EEG = signal1_1.P3;
+EEG = signal1_1.PZ;
 EEG = EEG(31000:31000*2);
 EEG = filtfilt(filter_fir_teta_1,1,EEG); % filtering
 
