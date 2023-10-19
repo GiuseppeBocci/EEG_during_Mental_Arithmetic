@@ -1,38 +1,50 @@
-clear; close; clc
+%% Initialization and loading EEGs
+
+clear; close; clc;
 
 datafolder='Data\';
-flist_1=dir([datafolder,'Subject0*_1.mat']); %91000
-flist_2=dir([datafolder,'Subject0*_2.mat']); %31000
+flist_1 = dir([datafolder,'Subject0*_1.mat']); % baseline has 91000 samples 
+flist_2 = dir([datafolder,'Subject0*_2.mat']); % task has 31000 samples
 
-for i=1:numel(flist_1)
-    fname_1=flist_1(i).name;
-    fpath_1=flist_1(i).folder;
-    sub_1(i)=load([fpath_1,'/',fname_1]);
+N_sub = numel(flist_1); % Number of subjects
 
-    fname_2=flist_2(i).name;
-    fpath_2=flist_2(i).folder;
-    sub_2(i)=load([fpath_2,'/',fname_2]);
+% NOTE: not always the fastest code is the prittiest :), but :_)
+
+% external loading of the fist subject to than copy the structure
+subj_rest_1 = load([datafolder,flist_1(1).name]);
+subj_task_1 = load([datafolder,flist_2(1).name]);
+
+% definition arries of subjects during rest(baseline) and task(mental arithmetic)
+subj_rest = repmat(subj_rest_1, 1, N_sub);
+subj_task = repmat(subj_task_1, 1, N_sub);
+
+% loading subjects EEGs
+for i = 2:N_sub
+    subj_rest(i) = load([datafolder,flist_1(i).name]);
+    subj_task(i) = load([datafolder,flist_2(i).name]);
 end
 
-channels = fieldnames(sub_2);
-N_chan = numel(channels);
-N_sub = numel(sub_2);
+channels = fieldnames(subj_task); % available channels 
+N_chan = numel(channels); % Number of available channels
+
 
 %% View signal and fft
-%Pre-processing
-%High-pass filter 0.5 Hz --> al posto di detrend
-%Low-pass filter 45 Hz
-%Notch filter 50 Hz
+% pre-processing already performed:
+% High-pass filter 0.5 Hz --> insead of detrend
+% Low-pass filter 45 Hz
+% Notch filter 50 Hz
 
 fs = 500;
 res = 0.3; %time constant of the amplification tract in seconds
-N_1 = length(sub_1(1).C3);
-N_2 = length(sub_2(1).C3);
+
+% Number of samples
+N_rest = length(subj_rest(1).C3); % 91000
+N_task = length(subj_task(1).C3); % 31000
 
 %N_min = fs*res; %fs/N aumenta N, res in Hz diminuisce, res in s aumenta
 
-t_1 = linspace(0,fs,N_1);
-t_2 = linspace(0,fs,N_2);
+t_1 = linspace(0,fs,N_rest);
+t_2 = linspace(0,fs,N_task);
 
 % for s = 1 : N_sub
 %     figure(s)
@@ -54,30 +66,35 @@ t_2 = linspace(0,fs,N_2);
 %         
 % end
 % 
-% for s = 1 : N_sub
-%     figure(s+N_sub*2)
-%     for c = 1 : N_chan
-%         EEG_1_fft=fft(sub_1(s).(channels{c}));
-%         subplot(5,4,c)
-%         plot(t_1, abs(EEG_1_fft))
-%         %plot(t_1,(1/(fs*N_1)) * abs(EEG_1_fft).^2)
-%         title('FFT EEG')
-%         xlim([0,fs/2])
-%     end
-% end
+
+%TODO: cambiare da questa visualizzazione a quella con la mappa del
+%cervello e al click dell'elettrodo esce la fft associata, comunque 6
+%finestre per ogni soggetto, o no? da vedere
+for s = 1:N_sub
+    figure(s+N_sub*2)
+    for c = 1 : N_chan
+        EEG_rest_fft = fft(subj_rest(s).(channels{c}));
+        subplot(5,4,c)
+        plot(t_1, abs(EEG_rest_fft))
+        %plot(t_1,(1/(fs*N_1)) * abs(EEG_1_fft).^2)
+        title({'FFT EEG rest ', channels{c}})
+        xlim([0,fs/2])
+    end
+end
 
 %% PSD all signal
-lim = [0,fs/2];
+
 noverlap = 0;
-l_wind = fs * 20; %window of 20 s
-rest = [1, 3, 5, 7 , 9, 11];
+l_wind = fs * 20; % window of 20 s
+rest = [1, 3, 5, 7 , 9, 11]; % TODO: a cosa servono---> posizione per il plot delle figure?
 aritm = [2, 4, 6, 8, 10, 12];
 
-for c = 1 : N_chan
+
+for ch = 1 : N_chan
     for s = 1 : N_sub
 
-        [PSDp_1(s).(channels{c}),fp_1] = pwelch(sub_1(s).(channels{c}),rectwin(l_wind),noverlap,[],fs);
-        [PSDp_2(s).(channels{c}),fp_2] = pwelch(sub_2(s).(channels{c}),rectwin(l_wind),noverlap,[],fs);
+        [PSDp_1(s).(channels{c}),fp_1] = pwelch(subj_rest(s).(channels{c}), rectwin(l_wind), noverlap, [], fs);
+        [PSDp_2(s).(channels{c}),fp_2] = pwelch(subj_task(s).(channels{c}), rectwin(l_wind), noverlap, [], fs);
 
 %         figure(c)
 %         subplot(6,2,rest(s))
@@ -93,6 +110,8 @@ for c = 1 : N_chan
 end
 
 %% Resample the signal
+
+% TODO: da rivedere
 fcut = 70;
 fs_new = 140;
 EEG_1_rs = struct();
@@ -100,10 +119,10 @@ EEG_2_rs = struct();
 
 for s = 1 : N_sub
     for c = 1 : N_chan
-        EEG_1_rs(s).(channels{c}) = resample(sub_1(s).(channels{c}),fs_new,fs); %basically, take one sample every fs/fs_new
+        EEG_1_rs(s).(channels{c}) = resample(subj_rest(s).(channels{c}),fs_new,fs); %basically, take one sample every fs/fs_new
         t_1_rs = resample(t_1,fs_new,fs);
         N_1_rs = length(EEG_1_rs);
-        EEG_2_rs(s).(channels{c}) = resample(sub_2(s).(channels{c}),fs_new,fs);
+        EEG_2_rs(s).(channels{c}) = resample(subj_task(s).(channels{c}),fs_new,fs);
         t_2_rs = resample(t_2,fs_new,fs);
         N_2_rs = length(EEG_2_rs);
 
@@ -140,13 +159,15 @@ for c = 1 : N_chan
 end
 
 %% Band_subdivision
-load('filters_resample.mat')
-coefficienti_Bande= struct('delta',  filter_delta.Coefficients, ...
+
+load('filters_resample.mat');
+
+band_coefficients= struct('delta',  filter_delta.Coefficients, ...
     'theta',  filter_theta.Coefficients,...
     'alpha',  filter_alpha.Coefficients,...
     'beta',  filter_beta.Coefficients);
 
-[resample_band_1, resample_band_2] = Band_sub(coefficienti_Bande, fs_new, fs);
+[resample_band_1, resample_band_2] = Band_sub(band_coefficients, fs_new, fs);
 
 %% PDS band
 lim_delta = [0.5, 4];
@@ -240,12 +261,12 @@ end
 
 %% Band and channels selected
 load('filters_sub_bands.mat')
-coefficienti_Bande= struct('theta1',  filter_theta1.Coefficients, ...
+band_coefficients= struct('theta1',  filter_theta1.Coefficients, ...
     'theta2',  filter_theta2.Coefficients,...
     'beta1',  filter_beta1.Coefficients,...
     'beta2',  filter_beta2.Coefficients);
 
-[signal_sub_band_1, signal_sub_band_2] = Band_sub(coefficienti_Bande, fs_new, fs);
+[signal_sub_band_1, signal_sub_band_2] = Band_sub(band_coefficients, fs_new, fs);
 
 %% PDS band
 lim_theta1 = [4.1, 5.8];
