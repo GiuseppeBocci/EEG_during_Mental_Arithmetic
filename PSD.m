@@ -18,6 +18,10 @@ subj_task_1 = load([datafolder,flist_2(1).name]);
 subj_rest = repmat(subj_rest_1, 1, N_sub);
 subj_task = repmat(subj_task_1, 1, N_sub);
 
+% copy of the first subj in the arrays
+subj_rest(1) = subj_rest_1;
+subj_task(1) = subj_task_1;
+
 % loading subjects EEGs
 for i = 2:N_sub
     subj_rest(i) = load([datafolder,flist_1(i).name]);
@@ -35,13 +39,10 @@ N_chan = numel(channels); % Number of available channels
 % Notch filter 50 Hz
 
 fs = 500;
-res = 0.3; %time constant of the amplification tract in seconds
 
 % Number of samples
 N_rest = length(subj_rest(1).C3); % 91000
 N_task = length(subj_task(1).C3); % 31000
-
-%N_min = fs*res; %fs/N aumenta N, res in Hz diminuisce, res in s aumenta
 
 t_1 = linspace(0,fs,N_rest);
 t_2 = linspace(0,fs,N_task);
@@ -76,7 +77,7 @@ for s = 1:N_sub
         EEG_rest_fft = fft(subj_rest(s).(channels{c}));
         subplot(5,4,c)
         plot(t_1, abs(EEG_rest_fft))
-        %plot(t_1,(1/(fs*N_1)) * abs(EEG_1_fft).^2)
+        %plot(t_1,(1/(fs*N_1)) * abs(EEG_1_fft).^2) PSD
         title({'FFT EEG rest ', channels{c}})
         xlim([0,fs/2])
     end
@@ -86,9 +87,6 @@ end
 
 noverlap = 0;
 l_wind = fs * 20; % window of 20 s
-rest = [1, 3, 5, 7 , 9, 11]; % TODO: a cosa servono---> posizione per il plot delle figure?
-aritm = [2, 4, 6, 8, 10, 12];
-
 
 for ch = 1 : N_chan
     for s = 1 : N_sub
@@ -97,12 +95,12 @@ for ch = 1 : N_chan
         [PSDp_2(s).(channels{c}),fp_2] = pwelch(subj_task(s).(channels{c}), rectwin(l_wind), noverlap, [], fs);
 
 %         figure(c)
-%         subplot(6,2,rest(s))
+%         subplot(6,2,s*2-1)
 %         plot(fp_1,PSDp_1(s).(channels{c}))
 %         xlim(lim)
 %         title('PSD rest')
 % 
-%         subplot(6,2,aritm(s))
+%         subplot(6,2,s*2)
 %         plot(fp_2,PSDp_2(s).(channels{c}))
 %         xlim(lim)
 %         title('PSD mental arith')
