@@ -11,16 +11,14 @@ N_sub = numel(flist_1); % Number of subjects
 % NOTE: not always the fastest code is the prittiest :), but :_)
 
 % external loading of the fist subject to than copy the structure
-subj_rest_1 = load([datafolder,flist_1(1).name]);
+subj_rest_1 = importdata([datafolder,flist_1(1).name]);
 subj_task_1 = load([datafolder,flist_2(1).name]);
 
 % definition arries of subjects during rest(baseline) and task(mental arithmetic)
 subj_rest = repmat(subj_rest_1, 1, N_sub);
 subj_task = repmat(subj_task_1, 1, N_sub);
-
-% copy of the first subj in the arrays
-subj_rest(1) = subj_rest_1;
-subj_task(1) = subj_task_1;
+clear subj_rest_1;
+clear subj_task_1;
 
 % loading subjects EEGs
 for i = 2:N_sub
@@ -39,13 +37,14 @@ N_chan = numel(channels); % Number of available channels
 % Notch filter 50 Hz
 
 fs = 500;
+fn = fs/2;
 
 % Number of samples
 N_rest = length(subj_rest(1).C3); % 91000
 N_task = length(subj_task(1).C3); % 31000
 
-t_1 = linspace(0,fs,N_rest);
-t_2 = linspace(0,fs,N_task);
+t_rest = linspace(0,fs,N_rest);
+t_task = linspace(0,fs,N_task);
 
 % for s = 1 : N_sub
 %     figure(s)
@@ -76,10 +75,10 @@ for s = 1:N_sub
     for c = 1 : N_chan
         EEG_rest_fft = fft(subj_rest(s).(channels{c}));
         subplot(5,4,c)
-        plot(t_1, abs(EEG_rest_fft))
-        %plot(t_1,(1/(fs*N_1)) * abs(EEG_1_fft).^2) PSD
+        plot(t_rest, abs(EEG_rest_fft))
+        % plot(t_1,(1/(fs*N_1)) * abs(EEG_1_fft).^2) PSD
         title({'FFT EEG rest ', channels{c}})
-        xlim([0,fs/2])
+        xlim([0,fn])
     end
 end
 
@@ -88,22 +87,38 @@ end
 noverlap = 0;
 l_wind = fs * 20; % window of 20 s
 
+% for ch = 1 : N_chan
+%     strc.(channels{ch}) = zeros(welchLength???, N_sub, 'double');
+% end
 for ch = 1 : N_chan
-    for s = 1 : N_sub
+    [PSDp_rest_1.(channels{ch}),fp_1] = pwelch(subj_rest(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
+    [PSDp_task_1.(channels{ch}),fp_2] = pwelch(subj_task(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
+end
 
-        [PSDp_1(s).(channels{c}),fp_1] = pwelch(subj_rest(s).(channels{c}), rectwin(l_wind), noverlap, [], fs);
-        [PSDp_2(s).(channels{c}),fp_2] = pwelch(subj_task(s).(channels{c}), rectwin(l_wind), noverlap, [], fs);
+PSDp_rest = repmat(PSDp_rest_1, 1, N_sub);
+PSDp_task = repmat(PSDp_task_1, 1, N_sub);
+clear PSDp_rest_1;
+clear PSDp_task_1;
 
-%         figure(c)
-%         subplot(6,2,s*2-1)
-%         plot(fp_1,PSDp_1(s).(channels{c}))
-%         xlim(lim)
-%         title('PSD rest')
-% 
-%         subplot(6,2,s*2)
-%         plot(fp_2,PSDp_2(s).(channels{c}))
-%         xlim(lim)
-%         title('PSD mental arith')
+for ch = 1 : N_chan
+    for s = 2 : N_sub
+
+        % [PSDp_rest(s).(channels{ch}),fp_1] = pwelch(subj_rest(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
+        % [PSDp_task(s).(channels{ch}),fp_2] = pwelch(subj_task(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
+        [PSDp_rest(s).(channels{ch}),fp_1] = pwelch(subj_rest(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
+        [PSDp_task(s).(channels{ch}),fp_2] = pwelch(subj_task(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
+        %strc.(channels{ch})(s) = PSDp_rest(s).(channels{ch});
+
+        % figure(ch)
+        % subplot(6,2,s*2-1)
+        % plot(fp_1,PSDp_rest(s).(channels{ch}))
+        % xlim([0,fn])
+        % title('PSD rest')
+        % 
+        % subplot(6,2,s*2)
+        % plot(fp_2,PSDp_task(s).(channels{ch}))
+        % xlim([0,fn])
+        % title('PSD mental arith')
     end
 end
 
@@ -118,10 +133,10 @@ EEG_2_rs = struct();
 for s = 1 : N_sub
     for c = 1 : N_chan
         EEG_1_rs(s).(channels{c}) = resample(subj_rest(s).(channels{c}),fs_new,fs); %basically, take one sample every fs/fs_new
-        t_1_rs = resample(t_1,fs_new,fs);
+        t_1_rs = resample(t_rest,fs_new,fs);
         N_1_rs = length(EEG_1_rs);
         EEG_2_rs(s).(channels{c}) = resample(subj_task(s).(channels{c}),fs_new,fs);
-        t_2_rs = resample(t_2,fs_new,fs);
+        t_2_rs = resample(t_task,fs_new,fs);
         N_2_rs = length(EEG_2_rs);
 
 %         figure(s)
@@ -138,19 +153,31 @@ lim = [0, fcut];
 l_wind_rs = fs_new * 10;
 
 for c = 1 : N_chan
+    [PSDp_rest_rs_1.(channels{c}),~] = pwelch(EEG_1_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
+    [PSDp_task_rs_1.(channels{c}),~] = pwelch(EEG_2_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
+end
+
+
+
+PSDp_rest_rs = repmat(PSDp_rest_rs_1, 1, N_sub);
+PSDp_task_rs = repmat(PSDp_task_rs_1, 1, N_sub);
+clear PSDp_rest_rs_1;
+clear PSDp_task_rs_1;
+
+for c = 1 : N_chan
     for s = 1 : N_sub
 
-        [PSDp_1_rs(s).(channels{c}),fp_1_rs] = pwelch(EEG_1_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
-        [PSDp_2_rs(s).(channels{c}),fp_2_rs] = pwelch(EEG_2_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
+        [PSDp_rest_rs(s).(channels{c}),~] = pwelch(EEG_1_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
+        [PSDp_task_rs(s).(channels{c}),~] = pwelch(EEG_2_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
 
 %         figure(c)
 %         subplot(6,2,rest(s))
-%         plot(fp_1_rs,PSDp_1_rs(s).(channels{c}))
+%         plot(fp_1_rs,PSDp_rest_rs(s).(channels{c}))
 %         xlim(lim)
 %         title('PSD rest')
 % 
 %         subplot(6,2,aritm(s))
-%         plot(fp_2_rs,PSDp_2_rs(s).(channels{c}))
+%         plot(fp_2_rs,PSDp_task_rs(s).(channels{c}))
 %         xlim(lim)
 %         title('PSD mental arith')
     end
@@ -168,92 +195,30 @@ band_coefficients= struct('delta',  filter_delta.Coefficients, ...
 [resample_band_1, resample_band_2] = Band_sub(band_coefficients, fs_new, fs);
 
 %% PDS band
+bands = ["delta", "theta", "alpha", "beta"];
 lim_delta = [0.5, 4];
 lim_theta = [4,  8];
 lim_alpha = [8, 13];
 lim_beta  = [13, 30];
-overlap = 0.5;
+noverlap = floor(l_wind_rs*0.5);
 folder = 'Band\';
+
+%TODO: si puo fare in modo diverso?
+[tmp ,~] = pwelch(resample_band_1.(channels{1}){s,1},rectwin(l_wind_rs),noverlap,[],fs_new);
+len_welch = numel(tmp);
+
+for c = 1 : N_chan
+    PSD_rest.(channels{c}) = zeros(N_sub, numel(bands), len_welch);
+    PSD_task.(channels{c}) = zeros(N_sub, numel(bands), len_welch);
+end
 
 for c = 1 : N_chan
     for s = 1 : N_sub
-        %Delta
-        [PSD_1_delta(s).(channels{c}),fp_1_delta] = pwelch(resample_band_1.(channels{c}){s,1},rectwin(l_wind_rs),overlap,[],fs_new);
-        [PSD_2_delta(s).(channels{c}),fp_2_delta] = pwelch(resample_band_2.(channels{c}){s,1},rectwin(l_wind_rs),overlap,[],fs_new);
-        %Theta
-        [PSD_1_theta(s).(channels{c}),fp_1_theta] = pwelch(resample_band_1.(channels{c}){s,2},rectwin(l_wind_rs),overlap,[],fs_new);
-        [PSD_2_theta(s).(channels{c}),fp_2_theta] = pwelch(resample_band_2.(channels{c}){s,2},rectwin(l_wind_rs),overlap,[],fs_new);
-        %Alpha
-        [PSD_1_alpha(s).(channels{c}),fp_1_alpha] = pwelch(resample_band_1.(channels{c}){s,3},rectwin(l_wind_rs),overlap,[],fs_new);
-        [PSD_2_alpha(s).(channels{c}),fp_2_alpha] = pwelch(resample_band_2.(channels{c}){s,3},rectwin(l_wind_rs),overlap,[],fs_new);
-        %Beta
-        [PSD_1_beta(s).(channels{c}),fp_1_beta] = pwelch(resample_band_1.(channels{c}){s,4},rectwin(l_wind_rs),overlap,[],fs_new);
-        [PSD_2_beta(s).(channels{c}),fp_2_beta] = pwelch(resample_band_2.(channels{c}){s,4},rectwin(l_wind_rs),overlap,[],fs_new);
-
-%         %Delta
-%         figure(c)
-%         subplot(6,2,rest(s))
-%         plot(fp_1_delta,PSD_1_delta(s).(channels{c}))
-%         xlim(lim_delta)
-%         title('PSD rest')
-%         subplot(6,2,aritm(s))
-%         plot(fp_2_delta,PSD_2_delta(s).(channels{c}))
-%         xlim(lim_delta)
-%         title('PSD mental arith')
-% 
-%         %Theta
-%         figure(c+N_sub)
-%         subplot(6,2,rest(s))
-%         plot(fp_1_theta,PSD_1_theta(s).(channels{c}))
-%         xlim(lim_theta)
-%         title('PSD rest')
-%         subplot(6,2,aritm(s))
-%         plot(fp_2_theta,PSD_2_theta(s).(channels{c}))
-%         xlim(lim_theta)
-%         title('PSD mental arith')
-% 
-%         %Alpha
-%         figure(c+N_sub*2)
-%         subplot(6,2,rest(s))
-%         plot(fp_1_alpha,PSD_1_alpha(s).(channels{c}))
-%         xlim(lim_alpha)
-%         title('PSD rest')
-%         subplot(6,2,aritm(s))
-%         plot(fp_2_alpha,PSD_2_alpha(s).(channels{c}))
-%         xlim(lim_alpha)
-%         title('PSD mental arith')
-% 
-%         %Beta
-%         figure(c+N_sub*3)
-%         subplot(6,2,rest(s))
-%         plot(fp_1_beta,PSD_1_beta(s).(channels{c}))
-%         xlim(lim_beta)
-%         title('PSD rest')
-%         subplot(6,2,aritm(s))
-%         plot(fp_2_beta,PSD_2_beta(s).(channels{c}))
-%         xlim(lim_beta)
-%         title('PSD mental arith')
+        for b = 1 : numel(bands)
+            [PSD_rest.(channels{c})(s,b,:),~] = pwelch(resample_band_1.(channels{c}){s,b},rectwin(l_wind_rs),noverlap,[],fs_new);
+            [PSD_task.(channels{c})(s,b,:),~] = pwelch(resample_band_2.(channels{c}){s,b},rectwin(l_wind_rs),noverlap,[],fs_new);
+        end
     end
-%          %Salvare figura
-%          hfig=figure((c));
-%          titolo_figura=sprintf('%s_delta', channels{c});
-%          fullFileName=fullfile(folder,titolo_figura);
-%          saveas(hfig,fullFileName)
-%  
-%          hfig=figure((c+N_sub));
-%          titolo_figura=sprintf('%s_theta', channels{c});
-%          fullFileName=fullfile(folder,titolo_figura);
-%          saveas(hfig,fullFileName)
-%  
-%          hfig=figure((c+N_sub*2));
-%          titolo_figura=sprintf('%s_alpha', channels{c});
-%          fullFileName=fullfile(folder,titolo_figura);
-%          saveas(hfig,fullFileName)
-%  
-%          hfig=figure((c+N_sub*3));
-%          titolo_figura=sprintf('%s_beta', channels{c});
-%          fullFileName=fullfile(folder,titolo_figura);
-%          saveas(hfig,fullFileName)
 end
 
 
@@ -272,133 +237,111 @@ lim_theta2 = [5.9,  7.4];
 lim_beta1 = [13, 19.9];
 lim_beta2 = [20, 25];
 folder = 'Band_selected\';
-chan_choosen = [4, 7, 8, 12]; % F3, F8, Fp1, O2
 
-PSD_1_theta1 = struct();
+for c = 1 : N_chan
+    PSD_rest_theta.(channels{c}) = zeros(N_sub, 2, len_welch);
+    PSD_rest_beta.(channels{c}) = zeros(N_sub, 2, len_welch);
 
-for c = 1 : numel(chan_choosen)
+    PSD_task_theta.(channels{c}) = zeros(N_sub, 2, len_welch);
+    PSD_task_beta.(channels{c}) = zeros(N_sub, 2, len_welch);
+end
+
+for c = 1 : N_chan
     for s = 1 : N_sub
-        %Theta1
-        [PSD_1_theta1(s).(channels{chan_choosen(c)}),fp_1_theta1] = pwelch(signal_sub_band_1.(channels{chan_choosen(c)}){s,1},rectwin(l_wind_rs),overlap,[],fs_new);
-        [PSD_2_theta1(s).(channels{chan_choosen(c)}),fp_2_theta1] = pwelch(signal_sub_band_2.(channels{chan_choosen(c)}){s,1},rectwin(l_wind_rs),overlap,[],fs_new);
-        %Theta2
-        [PSD_1_theta2(s).(channels{chan_choosen(c)}),fp_1_theta2] = pwelch(signal_sub_band_1.(channels{chan_choosen(c)}){s,2},rectwin(l_wind_rs),overlap,[],fs_new);
-        [PSD_2_theta2(s).(channels{chan_choosen(c)}),fp_2_theta2] = pwelch(signal_sub_band_2.(channels{chan_choosen(c)}){s,2},rectwin(l_wind_rs),overlap,[],fs_new);
-        %Beta1
-        [PSD_1_beta1(s).(channels{chan_choosen(c)}),fp_1_beta1] = pwelch(signal_sub_band_1.(channels{chan_choosen(c)}){s,3},rectwin(l_wind_rs),overlap,[],fs_new);
-        [PSD_2_beta1(s).(channels{chan_choosen(c)}),fp_2_beta1] = pwelch(signal_sub_band_2.(channels{chan_choosen(c)}){s,3},rectwin(l_wind_rs),overlap,[],fs_new);
-        %Beta2
-        [PSD_1_beta2(s).(channels{chan_choosen(c)}),fp_1_beta2] = pwelch(signal_sub_band_1.(channels{chan_choosen(c)}){s,4},rectwin(l_wind_rs),overlap,[],fs_new);
-        [PSD_2_beta2(s).(channels{chan_choosen(c)}),fp_2_beta2] = pwelch(signal_sub_band_2.(channels{chan_choosen(c)}){s,4},rectwin(l_wind_rs),overlap,[],fs_new);
-
-%         %Theta1
-%         figure(c)
-%         subplot(6,2,rest(s))
-%         plot(fp_1_theta1,PSD_1_theta1(s).(channels{chan_choosen}))
-%         xlim(lim_delta)
-%         title('PSD rest')
-%         subplot(6,2,aritm(s))
-%         plot(fp_2_theta1,PSD_2_theta1(s).(channels{chan_choosen}))
-%         xlim(lim_delta)
-%         title('PSD mental arith')
-% 
-%         %Theta2
-%         figure(c+N_sub)
-%         subplot(6,2,rest(s))
-%         plot(fp_1_theta2,PSD_1_theta2(s).(channels{chan_choosen}))
-%         xlim(lim_theta)
-%         title('PSD rest')
-%         subplot(6,2,aritm(s))
-%         plot(fp_2_theta2,PSD_2_theta2(s).(channels{chan_choosen}))
-%         xlim(lim_theta)
-%         title('PSD mental arith')
-% 
-%         %Beta1
-%         figure(c+N_sub*2)
-%         subplot(6,2,rest(s))
-%         plot(fp_1_beta1,PSD_1_beta1(s).(channels{chan_choosen(c)}))
-%         xlim(lim_alpha)
-%         title('PSD rest')
-%         subplot(6,2,aritm(s))
-%         plot(fp_2_beta1,PSD_2_beta1(s).(channels{chan_choosen(c)}))
-%         xlim(lim_alpha)
-%         title('PSD mental arith')
-% 
-%         %Beta2
-%         figure(c+N_sub*3)
-%         subplot(6,2,rest(s))
-%         plot(fp_1_beta2,PSD_1_beta2(s).(channels{chan_choosen(c)}))
-%         xlim(lim_beta)
-%         title('PSD rest')
-%         subplot(6,2,aritm(s))
-%         plot(fp_2_beta2,PSD_2_beta2(s).(channels{chan_choosen(c)}))
-%         xlim(lim_beta)
-%         title('PSD mental arith')
+        for i = 1:2 %sub bands
+            %Theta
+            [PSD_rest_theta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_1.(channels{c}){s,1},rectwin(l_wind_rs),noverlap,[],fs_new);
+            [PSD_task_theta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_2.(channels{c}){s,1},rectwin(l_wind_rs),noverlap,[],fs_new);
+            %Beta
+            [PSD_rest_beta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_1.(channels{c}){s,4},rectwin(l_wind_rs),noverlap,[],fs_new);
+            [PSD_task_beta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_2.(channels{c}){s,4},rectwin(l_wind_rs),noverlap,[],fs_new);
+        end
     end
-%          %Salvare figura
-%          hfig=figure((c));
-%          titolo_figura=sprintf('%s_delta', channels{chan_choosen});
-%          fullFileName=fullfile(folder,titolo_figura);
-%          saveas(hfig,fullFileName)
-%  
-%          hfig=figure((c+N_sub));
-%          titolo_figura=sprintf('%s_theta', channels{chan_choosen});
-%          fullFileName=fullfile(folder,titolo_figura);
-%          saveas(hfig,fullFileName)
-%  
-%          hfig=figure((c+N_sub*2));
-%          titolo_figura=sprintf('%s_alpha', channels{chan_choosen});
-%          fullFileName=fullfile(folder,titolo_figura);
-%          saveas(hfig,fullFileName)
-%  
-%          hfig=figure((c+N_sub*3));
-%          titolo_figura=sprintf('%s_beta', channels{chan_choosen});
-%          fullFileName=fullfile(folder,titolo_figura);
-%          saveas(hfig,fullFileName)
 end
 
 
 %% Area
 N_chan = 4;
+chan_choosen = [4, 7, 8, 12]; % F3, F8, Fp1, O2
+area_rest = zeros(6, 4, 4); %TODO
+area_task = zeros(6, 4, 4); %TODO
+for c = 1 : N_chan
+    area_rest(:,c,1:2) = sum(PSD_rest_theta.(channels{chan_choosen(c)}), 3); %TODO
+    area_rest(:,c,3:4) = sum(PSD_rest_beta.(channels{chan_choosen(c)}), 3); %TODO
 
-for s = 1 : N_sub
-    for c = 1 : N_chan
-        area_1{s,c,1} = sum(PSD_1_theta1(s).(channels{chan_choosen(c)}));
-        area_1{s,c,2} = sum(PSD_1_theta2(s).(channels{chan_choosen(c)}));
-        area_2{s,c,1} = sum(PSD_2_theta1(s).(channels{chan_choosen(c)}));
-        area_2{s,c,2} = sum(PSD_2_theta2(s).(channels{chan_choosen(c)}));
-        area_1{s,c,3} = sum(PSD_1_beta1(s).(channels{chan_choosen(c)}));
-        area_1{s,c,4} = sum(PSD_1_beta2(s).(channels{chan_choosen(c)}));
-        area_2{s,c,3} = sum(PSD_2_beta1(s).(channels{chan_choosen(c)}));
-        area_2{s,c,4} = sum(PSD_2_beta2(s).(channels{chan_choosen(c)}));
+    area_task(:,c,1:2) = sum(PSD_task_theta.(channels{chan_choosen(c)}), 3); %TODO
+    area_task(:,c,3:4) = sum(PSD_task_beta.(channels{chan_choosen(c)}), 3); %TODO
+end
+% for s = 1 : N_sub
+%     for c = 1 : N_chan
+%         area_rest(s,c,1) = sum(PSD_rest_theta(s).(channels{chan_choosen(c)}), 2);
+%         area_rest(s,c,1) = sum(PSD_rest_beta(s).(channels{chan_choosen(c)}), 2);
+% 
+%         area_task(s,c,1) = sum(PSD_task_theta(s).(channels{chan_choosen(c)}));
+%         area_task(s,c,1) = sum(PSD_task_beta(s).(channels{chan_choosen(c)}));
+% 
+%         % area_rest{s,c,1} = sum(PSD_rest_theta1(s).(channels{chan_choosen(c)}));
+%         % area_rest{s,c,2} = sum(PSD_rest_theta2(s).(channels{chan_choosen(c)}));
+%         % area_task{s,c,1} = sum(PSD_task_theta1(s).(channels{chan_choosen(c)}));
+%         % area_task{s,c,2} = sum(PSD_2_theta2(s).(channels{chan_choosen(c)}));
+%         % area_rest{s,c,3} = sum(PSD_rest_beta1(s).(channels{chan_choosen(c)}));
+%         % area_rest{s,c,4} = sum(PSD_rest_beta2(s).(channels{chan_choosen(c)}));
+%         % area_task{s,c,3} = sum(PSD_task_beta1(s).(channels{chan_choosen(c)}));
+%         % area_task{s,c,4} = sum(PSD_task_beta2(s).(channels{chan_choosen(c)}));
+%     end
+% end
+%% Plot results
+
+band_N = numel(fieldnames(band_coefficients)); %TODO
+inc = 0.2;
+mul = 0.5;
+%inc_b = 1/band_N;
+y_lim = 350;
+X_ticks = ones(1,band_N);
+X_ticks(1) = X_ticks(1) + inc/2;
+for i = 2:band_N
+    X_ticks(i) = X_ticks(i) + (i-1)*mul + inc/2;
+end
+for c = 1:N_chan
+    mul = 0.5;
+    figure('Name', "Scatter channel "+channels{chan_choosen(c)})
+    hold on
+    o_flag = false; % outliers flag
+    for i = 1:band_N
+        % for j = 1:N_sub
+        %     rgb(j,1) = rgb(j,1) + 0.1;
+        %     rgb(j,2) = rgb(j,2) + 0.23;
+        % end
+        mul = mul + 0.5;
+        scatter(mul*ones(1,6), area_rest(:,c,i),"blue", 'filled'); %TODO 6=N_SUB
+        outliers_rest = find(area_rest(:,c,i) > y_lim);
+
+        scatter((mul+inc)*ones(1,6), area_task(:,c,i),"red", 'filled');
+        outliers_task = find(area_task(:,c,i) > y_lim);
+
+        for k = 1:numel(outliers_rest)
+            o_flag = true;
+            o = scatter(mul, y_lim-k*2, "black");
+            o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_rest(outliers_rest(k),c,i));
+            o.DataTipTemplate.DataTipRows(4) = '';
+        end
+        for k = 1:numel(outliers_task)
+            o_flag = true;
+            o = scatter(mul+inc, y_lim-k*2, "black");
+            o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_task(outliers_task(k),c,i));
+            o.DataTipTemplate.DataTipRows(4) = '';
+        end
+    end
+    xticks(X_ticks);
+    xticklabels({'\theta1', ...
+        '\theta2','\beta1', ...
+        '\beta2'});
+    xlim([X_ticks(1)-inc, X_ticks(numel(X_ticks))+inc]);
+    ylim([0, y_lim]);
+    if o_flag
+        legend("rest", "task", "outliers", "Location", "eastoutside");
+    else
+        legend("rest", "task", "Location", "eastoutside");
     end
 end
-disp('a')
-%%
 
-s=2;
-can=4;
-figure
-scatter(ones(1,6),cell2mat(area_1(:,1,can)))
-hold on
-scatter(1.2*ones(1,6), cell2mat(area_2(:,1,can)))
-hold on
-scatter(1.5*ones(1,6),cell2mat(area_1(:,2,can)))
-hold on
-scatter(1.7*ones(1,6), cell2mat(area_2(:,2,can)))
-hold on
-scatter(2*ones(1,6),cell2mat(area_1(:,3,can)))
-hold on
-scatter(2.2*ones(1,6), cell2mat(area_2(:,3,can)))
-hold on
-scatter(2.5*ones(1,6),cell2mat(area_1(:,4,can)))
-hold on
-scatter(2.7*ones(1,6), cell2mat(area_2(:,4,can)))
-hold on
-plot([1, 1.2], [cell2mat(area_1(s,1,can)), cell2mat(area_2(s,1,can))])
-hold on
-plot([1.5, 1.7], [cell2mat(area_1(s,2,can)), cell2mat(area_2(s,2,can))])
-hold on
-plot([2, 2.2], [cell2mat(area_1(s,3,can)), cell2mat(area_2(s,3,can))])
-hold on
-plot([2.5, 2.7], [cell2mat(area_1(s,4,can)), cell2mat(area_2(s,4,can))])
