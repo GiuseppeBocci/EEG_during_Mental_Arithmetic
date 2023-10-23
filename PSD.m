@@ -50,7 +50,7 @@ t_task = linspace(0,fs,N_task);
 %     figure(s)
 %     for c = 1 : N_chan
 %         subplot(5,4,c)
-%         plot(t_1, sub_1(s).(channels{c}))
+%         plot(t_1, subj_rest(s).(channels{c}))
 %         title('EEG rest')
 %     end
 %         
@@ -60,7 +60,7 @@ t_task = linspace(0,fs,N_task);
 %     figure(s+N_sub)
 %     for c = 1 : N_chan
 %         subplot(5,4,c)
-%         plot(t_2, sub_2(s).(channels{c}))
+%         plot(t_2, subj_task(s).(channels{c}))
 %         title('EEG mental arith')
 %     end
 %         
@@ -76,7 +76,7 @@ for s = 1:N_sub
         EEG_rest_fft = fft(subj_rest(s).(channels{c}));
         subplot(5,4,c)
         plot(t_rest, abs(EEG_rest_fft))
-        % plot(t_1,(1/(fs*N_1)) * abs(EEG_1_fft).^2) PSD
+        % plot(t_1,(1/(fs*N_1)) * abs(EEG_rest_fft).^2) PSD
         title({'FFT EEG rest ', channels{c}})
         xlim([0,fn])
     end
@@ -127,23 +127,23 @@ end
 % TODO: da rivedere
 fcut = 70;
 fs_new = 140;
-EEG_1_rs = struct();
-EEG_2_rs = struct();
+EEG_rest_rs = struct();
+EEG_task_rs = struct();
 
 for s = 1 : N_sub
     for c = 1 : N_chan
-        EEG_1_rs(s).(channels{c}) = resample(subj_rest(s).(channels{c}),fs_new,fs); %basically, take one sample every fs/fs_new
+        EEG_rest_rs(s).(channels{c}) = resample(subj_rest(s).(channels{c}),fs_new,fs); %basically, take one sample every fs/fs_new
         t_1_rs = resample(t_rest,fs_new,fs);
-        N_1_rs = length(EEG_1_rs);
-        EEG_2_rs(s).(channels{c}) = resample(subj_task(s).(channels{c}),fs_new,fs);
+        N_1_rs = length(EEG_rest_rs);
+        EEG_task_rs(s).(channels{c}) = resample(subj_task(s).(channels{c}),fs_new,fs);
         t_2_rs = resample(t_task,fs_new,fs);
-        N_2_rs = length(EEG_2_rs);
+        N_2_rs = length(EEG_task_rs);
 
 %         figure(s)
 %         subplot(5,4,c)
-%         plot(t_1,sub_1(s).(channels{c}))
+%         plot(t_1,subj_rest(s).(channels{c}))
 %         hold on
-%         plot(t_1_rs,EEG_1_rs(s).(channels{c}))
+%         plot(t_1_rs,EEG_rest_rs(s).(channels{c}))
 %         %legend('original EEG', 'resampled EEG')
     end
 end
@@ -153,8 +153,8 @@ lim = [0, fcut];
 l_wind_rs = fs_new * 10;
 
 for c = 1 : N_chan
-    [PSDp_rest_rs_1.(channels{c}),~] = pwelch(EEG_1_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
-    [PSDp_task_rs_1.(channels{c}),~] = pwelch(EEG_2_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
+    [PSDp_rest_rs_1.(channels{c}),~] = pwelch(EEG_rest_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
+    [PSDp_task_rs_1.(channels{c}),~] = pwelch(EEG_task_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
 end
 
 
@@ -167,8 +167,8 @@ clear PSDp_task_rs_1;
 for c = 1 : N_chan
     for s = 1 : N_sub
 
-        [PSDp_rest_rs(s).(channels{c}),~] = pwelch(EEG_1_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
-        [PSDp_task_rs(s).(channels{c}),~] = pwelch(EEG_2_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
+        [PSDp_rest_rs(s).(channels{c}),~] = pwelch(EEG_rest_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
+        [PSDp_task_rs(s).(channels{c}),~] = pwelch(EEG_task_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
 
 %         figure(c)
 %         subplot(6,2,rest(s))
@@ -201,7 +201,6 @@ lim_theta = [4,  8];
 lim_alpha = [8, 13];
 lim_beta  = [13, 30];
 noverlap = floor(l_wind_rs*0.5);
-folder = 'Band\';
 
 %TODO: si puo fare in modo diverso?
 [tmp ,~] = pwelch(resample_band_1.(channels{1}){s,1},rectwin(l_wind_rs),noverlap,[],fs_new);
