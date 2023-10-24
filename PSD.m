@@ -33,8 +33,7 @@ N_chan = numel(channels); % Number of available channels
 %% View signal and fft
 % pre-processing already performed:
 % High-pass filter 0.5 Hz --> insead of detrend
-% Low-pass filter 45 Hz
-% Notch filter 50 Hz
+% Notch filter 50 Hz --> remove power network noise
 
 fs = 500;
 fn = fs/2;
@@ -87,9 +86,6 @@ end
 noverlap = 0;
 l_wind = fs * 20; % window of 20 s
 
-% for ch = 1 : N_chan
-%     strc.(channels{ch}) = zeros(welchLength???, N_sub, 'double');
-% end
 for ch = 1 : N_chan
     [PSDp_rest_1.(channels{ch}),fp_1] = pwelch(subj_rest(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
     [PSDp_task_1.(channels{ch}),fp_2] = pwelch(subj_task(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
@@ -103,12 +99,9 @@ clear PSDp_task_1;
 for ch = 1 : N_chan
     for s = 2 : N_sub
 
-        % [PSDp_rest(s).(channels{ch}),fp_1] = pwelch(subj_rest(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
-        % [PSDp_task(s).(channels{ch}),fp_2] = pwelch(subj_task(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
         [PSDp_rest(s).(channels{ch}),fp_1] = pwelch(subj_rest(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
         [PSDp_task(s).(channels{ch}),fp_2] = pwelch(subj_task(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
-        %strc.(channels{ch})(s) = PSDp_rest(s).(channels{ch});
-
+        
         % figure(ch)
         % subplot(6,2,s*2-1)
         % plot(fp_1,PSDp_rest(s).(channels{ch}))
@@ -124,7 +117,6 @@ end
 
 %% Resample the signal
 
-% TODO: da rivedere
 fcut = 70;
 fs_new = 140;
 EEG_rest_rs = struct();
@@ -147,6 +139,8 @@ for s = 1 : N_sub
 %         %legend('original EEG', 'resampled EEG')
     end
 end
+tmp = EEG_rest_rs(1).C3;
+save("Data\baseline_resampled.mat", 'tmp');
 
 %% PSD all resampled signal
 lim = [0, fcut];
@@ -156,8 +150,6 @@ for c = 1 : N_chan
     [PSDp_rest_rs_1.(channels{c}),~] = pwelch(EEG_rest_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
     [PSDp_task_rs_1.(channels{c}),~] = pwelch(EEG_task_rs(s).(channels{c}),rectwin(l_wind_rs),noverlap,[],fs_new);
 end
-
-
 
 PSDp_rest_rs = repmat(PSDp_rest_rs_1, 1, N_sub);
 PSDp_task_rs = repmat(PSDp_task_rs_1, 1, N_sub);
@@ -185,7 +177,7 @@ end
 
 %% Band_subdivision
 
-load('filters_resample.mat');
+load('filters.mat');
 
 band_coefficients= struct('delta',  filter_delta.Coefficients, ...
     'theta',  filter_theta.Coefficients,...
@@ -200,10 +192,10 @@ lim_delta = [0.5, 4];
 lim_theta = [4,  8];
 lim_alpha = [8, 13];
 lim_beta  = [13, 30];
-noverlap = floor(l_wind_rs*0.5);
+overlap = floor(l_wind_rs*0.5);
 
 %TODO: si puo fare in modo diverso?
-[tmp ,~] = pwelch(resample_band_1.(channels{1}){s,1},rectwin(l_wind_rs),noverlap,[],fs_new);
+[tmp ,fp] = pwelch(resample_band_1.(channels{1}){s,1},rectwin(l_wind_rs),overlap,[],fs_new);
 len_welch = numel(tmp);
 
 for c = 1 : N_chan
@@ -214,8 +206,8 @@ end
 for c = 1 : N_chan
     for s = 1 : N_sub
         for b = 1 : numel(bands)
-            [PSD_rest.(channels{c})(s,b,:),~] = pwelch(resample_band_1.(channels{c}){s,b},rectwin(l_wind_rs),noverlap,[],fs_new);
-            [PSD_task.(channels{c})(s,b,:),~] = pwelch(resample_band_2.(channels{c}){s,b},rectwin(l_wind_rs),noverlap,[],fs_new);
+            [PSD_rest.(channels{c})(s,b,:),~] = pwelch(resample_band_1.(channels{c}){s,b},rectwin(l_wind_rs),overlap,[],fs_new);
+            [PSD_task.(channels{c})(s,b,:),~] = pwelch(resample_band_2.(channels{c}){s,b},rectwin(l_wind_rs),overlap,[],fs_new);
         end
     end
 end
@@ -235,7 +227,6 @@ lim_theta1 = [4.1, 5.8];
 lim_theta2 = [5.9,  7.4];
 lim_beta1 = [13, 19.9];
 lim_beta2 = [20, 25];
-folder = 'Band_selected\';
 
 for c = 1 : N_chan
     PSD_rest_theta.(channels{c}) = zeros(N_sub, 2, len_welch);
@@ -249,11 +240,11 @@ for c = 1 : N_chan
     for s = 1 : N_sub
         for i = 1:2 %sub bands
             %Theta
-            [PSD_rest_theta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_1.(channels{c}){s,1},rectwin(l_wind_rs),noverlap,[],fs_new);
-            [PSD_task_theta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_2.(channels{c}){s,1},rectwin(l_wind_rs),noverlap,[],fs_new);
+            [PSD_rest_theta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_1.(channels{c}){s,i},rectwin(l_wind_rs),overlap,[],fs_new);
+            [PSD_task_theta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_2.(channels{c}){s,i},rectwin(l_wind_rs),overlap,[],fs_new);
             %Beta
-            [PSD_rest_beta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_1.(channels{c}){s,4},rectwin(l_wind_rs),noverlap,[],fs_new);
-            [PSD_task_beta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_2.(channels{c}){s,4},rectwin(l_wind_rs),noverlap,[],fs_new);
+            [PSD_rest_beta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_1.(channels{c}){s,i+2},rectwin(l_wind_rs),overlap,[],fs_new);
+            [PSD_task_beta.(channels{c})(s,i,:), ~] = pwelch(signal_sub_band_2.(channels{c}){s,i+2},rectwin(l_wind_rs),overlap,[],fs_new);
         end
     end
 end
@@ -271,24 +262,7 @@ for c = 1 : N_chan
     area_task(:,c,1:2) = sum(PSD_task_theta.(channels{chan_choosen(c)}), 3); %TODO
     area_task(:,c,3:4) = sum(PSD_task_beta.(channels{chan_choosen(c)}), 3); %TODO
 end
-% for s = 1 : N_sub
-%     for c = 1 : N_chan
-%         area_rest(s,c,1) = sum(PSD_rest_theta(s).(channels{chan_choosen(c)}), 2);
-%         area_rest(s,c,1) = sum(PSD_rest_beta(s).(channels{chan_choosen(c)}), 2);
-% 
-%         area_task(s,c,1) = sum(PSD_task_theta(s).(channels{chan_choosen(c)}));
-%         area_task(s,c,1) = sum(PSD_task_beta(s).(channels{chan_choosen(c)}));
-% 
-%         % area_rest{s,c,1} = sum(PSD_rest_theta1(s).(channels{chan_choosen(c)}));
-%         % area_rest{s,c,2} = sum(PSD_rest_theta2(s).(channels{chan_choosen(c)}));
-%         % area_task{s,c,1} = sum(PSD_task_theta1(s).(channels{chan_choosen(c)}));
-%         % area_task{s,c,2} = sum(PSD_2_theta2(s).(channels{chan_choosen(c)}));
-%         % area_rest{s,c,3} = sum(PSD_rest_beta1(s).(channels{chan_choosen(c)}));
-%         % area_rest{s,c,4} = sum(PSD_rest_beta2(s).(channels{chan_choosen(c)}));
-%         % area_task{s,c,3} = sum(PSD_task_beta1(s).(channels{chan_choosen(c)}));
-%         % area_task{s,c,4} = sum(PSD_task_beta2(s).(channels{chan_choosen(c)}));
-%     end
-% end
+
 %% Plot results
 
 band_N = numel(fieldnames(band_coefficients)); %TODO
@@ -344,3 +318,4 @@ for c = 1:N_chan
     end
 end
 
+%% Median
