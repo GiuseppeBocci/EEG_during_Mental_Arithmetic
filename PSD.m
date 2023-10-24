@@ -1,7 +1,7 @@
 %% Initialization and loading EEGs
 
 clear; close; clc;
-
+fig=0; %set 1 for true
 datafolder='Data\';
 flist_1 = dir([datafolder,'Subject0*_1.mat']); % baseline has 91000 samples 
 flist_2 = dir([datafolder,'Subject0*_2.mat']); % task has 31000 samples
@@ -69,26 +69,27 @@ t_task = linspace(0,fs,N_task);
 %TODO: cambiare da questa visualizzazione a quella con la mappa del
 %cervello e al click dell'elettrodo esce la fft associata, comunque 6
 %finestre per ogni soggetto, o no? da vedere
-for s = 1:N_sub
-    figure(s+N_sub*2)
-    for c = 1 : N_chan
-        EEG_rest_fft = fft(subj_rest(s).(channels{c}));
-        subplot(5,4,c)
-        plot(t_rest, abs(EEG_rest_fft))
-        % plot(t_1,(1/(fs*N_1)) * abs(EEG_rest_fft).^2) PSD
-        title({'FFT EEG rest ', channels{c}})
-        xlim([0,fn])
+if fig==1
+    for s = 1:N_sub
+        figure(s+N_sub*2)
+        for c = 1 : N_chan
+            EEG_rest_fft = fft(subj_rest(s).(channels{c}));
+            subplot(5,4,c)
+            plot(t_rest, abs(EEG_rest_fft))
+            % plot(t_1,(1/(fs*N_1)) * abs(EEG_rest_fft).^2) PSD
+            title({'FFT EEG rest ', channels{c}})
+            xlim([0,fn])
+        end
     end
 end
-
 %% PSD all signal
 
 noverlap = 0;
 l_wind = fs * 20; % window of 20 s
 
 for ch = 1 : N_chan
-    [PSDp_rest_1.(channels{ch}),fp_1] = pwelch(subj_rest(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
-    [PSDp_task_1.(channels{ch}),fp_2] = pwelch(subj_task(s).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
+    [PSDp_rest_1.(channels{ch}),fp_1] = pwelch(subj_rest(1).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
+    [PSDp_task_1.(channels{ch}),fp_2] = pwelch(subj_task(1).(channels{ch}), rectwin(l_wind), noverlap, [], fs);
 end
 
 PSDp_rest = repmat(PSDp_rest_1, 1, N_sub);
@@ -275,47 +276,137 @@ X_ticks(1) = X_ticks(1) + inc/2;
 for i = 2:band_N
     X_ticks(i) = X_ticks(i) + (i-1)*mul + inc/2;
 end
-for c = 1:N_chan
-    mul = 0.5;
-    figure('Name', "Scatter channel "+channels{chan_choosen(c)})
-    hold on
-    o_flag = false; % outliers flag
-    for i = 1:band_N
-        % for j = 1:N_sub
-        %     rgb(j,1) = rgb(j,1) + 0.1;
-        %     rgb(j,2) = rgb(j,2) + 0.23;
-        % end
-        mul = mul + 0.5;
-        scatter(mul*ones(1,6), area_rest(:,c,i),"blue", 'filled'); %TODO 6=N_SUB
-        outliers_rest = find(area_rest(:,c,i) > y_lim);
-
-        scatter((mul+inc)*ones(1,6), area_task(:,c,i),"red", 'filled');
-        outliers_task = find(area_task(:,c,i) > y_lim);
-
-        for k = 1:numel(outliers_rest)
-            o_flag = true;
-            o = scatter(mul, y_lim-k*2, "black");
-            o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_rest(outliers_rest(k),c,i));
-            o.DataTipTemplate.DataTipRows(4) = '';
+if fig==1
+    for c = 1:N_chan
+        mul = 0.5;
+        figure('Name', "Scatter channel "+channels{chan_choosen(c)})
+        hold on
+        o_flag = false; % outliers flag
+        for i = 1:band_N
+            % for j = 1:N_sub
+            %     rgb(j,1) = rgb(j,1) + 0.1;
+            %     rgb(j,2) = rgb(j,2) + 0.23;
+            % end
+            mul = mul + 0.5;
+            scatter(mul*ones(1,6), area_rest(:,c,i),"blue", 'filled'); %TODO 6=N_SUB
+            outliers_rest = find(area_rest(:,c,i) > y_lim);
+    
+            scatter((mul+inc)*ones(1,6), area_task(:,c,i),"red", 'filled');
+            outliers_task = find(area_task(:,c,i) > y_lim);
+    
+            for k = 1:numel(outliers_rest)
+                o_flag = true;
+                o = scatter(mul, y_lim-k*2, "black");
+                o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_rest(outliers_rest(k),c,i));
+                o.DataTipTemplate.DataTipRows(4) = '';
+            end
+            for k = 1:numel(outliers_task)
+                o_flag = true;
+                o = scatter(mul+inc, y_lim-k*2, "black");
+                o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_task(outliers_task(k),c,i));
+                o.DataTipTemplate.DataTipRows(4) = '';
+            end
         end
-        for k = 1:numel(outliers_task)
-            o_flag = true;
-            o = scatter(mul+inc, y_lim-k*2, "black");
-            o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_task(outliers_task(k),c,i));
-            o.DataTipTemplate.DataTipRows(4) = '';
+        xticks(X_ticks);
+        xticklabels({'\theta1', ...
+            '\theta2','\beta1', ...
+            '\beta2'});
+        xlim([X_ticks(1)-inc, X_ticks(numel(X_ticks))+inc]);
+        ylim([0, y_lim]);
+        if o_flag
+            legend("rest", "task", "outliers", "Location", "eastoutside");
+        else
+            legend("rest", "task", "Location", "eastoutside");
         end
-    end
-    xticks(X_ticks);
-    xticklabels({'\theta1', ...
-        '\theta2','\beta1', ...
-        '\beta2'});
-    xlim([X_ticks(1)-inc, X_ticks(numel(X_ticks))+inc]);
-    ylim([0, y_lim]);
-    if o_flag
-        legend("rest", "task", "outliers", "Location", "eastoutside");
-    else
-        legend("rest", "task", "Location", "eastoutside");
     end
 end
-
 %% Median
+median_rest = median(area_rest,1);
+median_task = median(area_task,1);
+
+
+arraytable = zeros(size(median_rest, 3),size(median_rest, 3)*2);
+for b=1:size(median_rest, 3)
+    arraytable(:,b*2-1) = median_rest(:,:,b);
+    arraytable(:,b*2) = median_task(:,:,b);
+end
+
+
+variableNames = {'Theta1_rest', 'Theta1_task', 'Theta2_rest', 'Theta2_task',...
+                'Beta1_rest', 'Beta1_task', 'Beta2_rest', 'Beta2_task'};
+tableData = array2table(arraytable, 'VariableNames', variableNames);
+
+writetable(tableData, 'Tabella_Mediane.xlsx')
+
+%% 
+area_rest = zeros(N_sub,numel(channels), numel(bands));
+area_task = zeros(N_sub,numel(channels), numel(bands));
+
+for c = 1 : numel(channels)
+    area_rest(:,c,1:2) = sum(PSD_rest_theta.(channels{c}), 3); %TODO
+    area_rest(:,c,3:4) = sum(PSD_rest_beta.(channels{c}), 3); %TODO
+
+    area_task(:,c,1:2) = sum(PSD_task_theta.(channels{c}), 3); %TODO
+    area_task(:,c,3:4) = sum(PSD_task_beta.(channels{c}), 3); %TODO
+end
+
+median_rest = median(area_rest,1);
+median_task = median(area_task,1);
+%%
+load("Data\chanlocs.mat")
+names = {chanlocs(1:19).labels};
+[~, idx] = sort(names);
+chanlocs = chanlocs(idx);
+
+%%
+cd("helper_code")
+figure('Name', "Theta1")
+subplot(1,2,1)
+title("Rest")
+topoplot(median_rest(:,:,1), chanlocs, 'electrodes', 'labels', 'style', 'fill')
+subplot(1,2,2)
+title("Task")
+topoplot(median_task(:,:,1), chanlocs, 'electrodes', 'labels', 'style', 'fill')
+
+figure('Name', "Theta2")
+subplot(1,2,1)
+title("Rest")
+topoplot(median_rest(:,:,2), chanlocs, 'electrodes', 'labels', 'style', 'fill')
+subplot(1,2,2)
+title("Task")
+topoplot(median_task(:,:,2), chanlocs, 'electrodes', 'labels', 'style', 'fill')
+
+figure('Name', "Beta1")
+subplot(1,2,1)
+title("Rest")
+topoplot(median_rest(:,:,3), chanlocs, 'electrodes', 'labels', 'style', 'fill')
+subplot(1,2,2)
+title("Task")
+topoplot(median_task(:,:,3), chanlocs, 'electrodes', 'labels', 'style', 'fill')
+
+figure('Name', "Beta2")
+subplot(1,2,1)
+title("Rest")
+topoplot(median_rest(:,:,4), chanlocs, 'electrodes', 'labels', 'style', 'fill')
+subplot(1,2,2)
+title("Task")
+topoplot(median_task(:,:,4), chanlocs, 'electrodes', 'labels', 'style', 'fill')
+
+cd('..')
+%%
+Ratio = abs(((median_task./median_rest)-1).*100);
+bnd=4;
+tmp=Ratio(:,:,bnd);
+Ratio(:,isoutlier(tmp),bnd)
+find(isoutlier(tmp))
+%%
+bnd=4;
+tmp=Ratio(:,:,bnd);
+Q3 = quantile(tmp, 0.75);
+Q1 = quantile(tmp, 0.25);
+position_high = ((tmp >= Q3));
+position_low = ((tmp <= Q1));
+% Ratio(:,position,bnd)
+find(position_high)
+find(position_low)
+%%
