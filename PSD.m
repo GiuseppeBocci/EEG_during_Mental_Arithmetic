@@ -187,7 +187,7 @@ band_coefficients= struct('delta',  filter_delta.Coefficients, ...
 
 [resample_band_1, resample_band_2] = Band_sub(band_coefficients, fs_new, fs);
 
-%% PDS band
+%% PDS standard band
 bands = ["delta", "theta", "alpha", "beta"];
 lim_delta = [0.5, 4];
 lim_theta = [4,  8];
@@ -223,7 +223,7 @@ band_coefficients= struct('theta1',  filter_theta1.Coefficients, ...
 
 [signal_sub_band_1, signal_sub_band_2] = Band_sub(band_coefficients, fs_new, fs);
 
-%% PDS band
+%% PDS selected band
 lim_theta1 = [4.1, 5.8];
 lim_theta2 = [5.9,  7.4];
 lim_beta1 = [13, 19.9];
@@ -251,9 +251,9 @@ for c = 1 : N_chan
 end
 
 
-%% Area
+%% Area of selected channels
 N_chan = 4;
-chan_choosen = [4, 7, 8, 12]; % F3, F8, Fp1, O2
+chan_choosen = [3, 6, 9, 13]; % Cz, F7, Fp2, P3
 area_rest = zeros(6, 4, 4); %TODO
 area_task = zeros(6, 4, 4); %TODO
 for c = 1 : N_chan
@@ -265,7 +265,7 @@ for c = 1 : N_chan
 end
 
 %% Plot results
-
+fig=1;
 band_N = numel(fieldnames(band_coefficients)); %TODO
 inc = 0.2;
 mul = 0.5;
@@ -288,23 +288,23 @@ if fig==1
             %     rgb(j,2) = rgb(j,2) + 0.23;
             % end
             mul = mul + 0.5;
-            scatter(mul*ones(1,6), area_rest(:,c,i),"blue", 'filled'); %TODO 6=N_SUB
+            b=scatter(mul*ones(1,6), area_rest(:,c,i),"blue", 'filled'); %TODO 6=N_SUB
             outliers_rest = find(area_rest(:,c,i) > y_lim);
     
-            scatter((mul+inc)*ones(1,6), area_task(:,c,i),"red", 'filled');
+            r=scatter((mul+inc)*ones(1,6), area_task(:,c,i),"red", 'filled');
             outliers_task = find(area_task(:,c,i) > y_lim);
     
             for k = 1:numel(outliers_rest)
                 o_flag = true;
                 o = scatter(mul, y_lim-k*2, "black");
                 o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_rest(outliers_rest(k),c,i));
-                o.DataTipTemplate.DataTipRows(4) = '';
+                o.DataTipTemplate.DataTipRows(4) = ' ';
             end
             for k = 1:numel(outliers_task)
                 o_flag = true;
                 o = scatter(mul+inc, y_lim-k*2, "black");
                 o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_task(outliers_task(k),c,i));
-                o.DataTipTemplate.DataTipRows(4) = '';
+                o.DataTipTemplate.DataTipRows(4) = ' ';
             end
         end
         xticks(X_ticks);
@@ -314,31 +314,29 @@ if fig==1
         xlim([X_ticks(1)-inc, X_ticks(numel(X_ticks))+inc]);
         ylim([0, y_lim]);
         if o_flag
-            legend("rest", "task", "outliers", "Location", "eastoutside");
+            legend([b, r, o],"rest", "task", "outliers", "Location", "eastoutside");
         else
             legend("rest", "task", "Location", "eastoutside");
         end
     end
 end
-%% Median
+
+%% Median of area
 median_rest = median(area_rest,1);
 median_task = median(area_task,1);
 
-
+%Save median into a tabel
 arraytable = zeros(size(median_rest, 3),size(median_rest, 3)*2);
 for b=1:size(median_rest, 3)
     arraytable(:,b*2-1) = median_rest(:,:,b);
     arraytable(:,b*2) = median_task(:,:,b);
 end
-
-
 variableNames = {'Theta1_rest', 'Theta1_task', 'Theta2_rest', 'Theta2_task',...
                 'Beta1_rest', 'Beta1_task', 'Beta2_rest', 'Beta2_task'};
 tableData = array2table(arraytable, 'VariableNames', variableNames);
-
 writetable(tableData, 'Tabella_Mediane.xlsx')
 
-%% 
+%% Area of all channels
 area_rest = zeros(N_sub,numel(channels), numel(bands));
 area_task = zeros(N_sub,numel(channels), numel(bands));
 
@@ -352,14 +350,14 @@ end
 
 median_rest = median(area_rest,1);
 median_task = median(area_task,1);
-%%
+
+%% Topoplot of median area in selected channels and band
 load("Data\chanlocs.mat")
 names = {chanlocs(1:19).labels};
 [~, idx] = sort(names);
 chanlocs = chanlocs(idx);
-
-%%
 cd("helper_code")
+
 figure('Name', "Theta1")
 subplot(1,2,1)
 title("Rest")
@@ -393,20 +391,19 @@ title("Task")
 topoplot(median_task(:,:,4), chanlocs, 'electrodes', 'labels', 'style', 'fill')
 
 cd('..')
-%%
+
+%% How to choose a channel
 Ratio = abs(((median_task./median_rest)-1).*100);
 bnd=4;
 tmp=Ratio(:,:,bnd);
+
 Ratio(:,isoutlier(tmp),bnd)
 find(isoutlier(tmp))
-%%
-bnd=4;
-tmp=Ratio(:,:,bnd);
+
 Q3 = quantile(tmp, 0.75);
 Q1 = quantile(tmp, 0.25);
 position_high = ((tmp >= Q3));
 position_low = ((tmp <= Q1));
-% Ratio(:,position,bnd)
+%Ratio(:,position,bnd)
 find(position_high)
 find(position_low)
-%%
