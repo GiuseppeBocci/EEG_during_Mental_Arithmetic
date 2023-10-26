@@ -24,14 +24,9 @@ function [bande_EEG_1,bande_EEG_2] = Band_sub(coefficienti_Bande, new_fs, old_fs
             %BANDS EXTRACTION 
             EEG.(Channels{ch})=resample(EEG.(Channels{ch}),new_fs,old_fs);
             for banda=1:numel(fields_bande)
-                % every row has a subject
-                [dim1,~] = size(coefficienti_Bande.(fields_bande{banda}));
-                if dim1 == 1
-                    EEG_temp = filter(coefficienti_Bande.(fields_bande{banda}),1,EEG.(Channels{ch}));
-                    % TODO: filtfilt
-                else
-                    EEG_temp = sosfilt(coefficienti_Bande.(fields_bande{banda}),EEG.(Channels{ch}));
-                end
+
+                EEG_temp = filter(coefficienti_Bande.(fields_bande{banda}),1,EEG.(Channels{ch}));
+                
                 bande_EEG_1.(Channels{ch}){s,banda} = EEG_temp;
             end
         end
@@ -48,15 +43,10 @@ function [bande_EEG_1,bande_EEG_2] = Band_sub(coefficienti_Bande, new_fs, old_fs
             EEG.(Channels{ch})=resample(EEG.(Channels{ch}),new_fs,old_fs);
 
             for banda=1:numel(fields_bande)
-                % every row has a subject
-                [dim1,~] = size(coefficienti_Bande.(fields_bande{banda}));
-                if dim1 == 1
-                    EEG_temp = filter(coefficienti_Bande.(fields_bande{banda}),1,EEG.(Channels{ch}));
-                    % TODO: filtfilt
-                else
-                    EEG_temp = sosfilt(coefficienti_Bande.(fields_bande{banda}),EEG.(Channels{ch}));
-                end
+
+                EEG_temp = filter(coefficienti_Bande.(fields_bande{banda}),1,EEG.(Channels{ch}));
                 bande_EEG_2.(Channels{ch}){s,banda} = EEG_temp;
+
             end
   
         end

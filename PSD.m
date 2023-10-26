@@ -2,7 +2,7 @@
 
 clear; close all; clc;
 
-show_fig = true; % set to true to show all the figures
+show_fig = false; % set to true to show all the figures
 subj_show = 1; % subject to show when show_fig = true
 chan_show = "FP1"; % channel to show when show_fig = true;
 datafolder='Data\';
@@ -57,7 +57,7 @@ if show_fig
     plot(t_task, abs(fft(subj_task(subj_show).(c_show))));
     title('FFT EEG '+c_show);
     xlabel("Frequency [Hz]");
-    ylabel("Amplitude [??]"); %TODO
+    ylabel("Amplitude [\muV^2/Hz]"); %TODO
     xlim([0,fn])
 
     legend("rest","task",'ItemHitFcn',@show_hide_graph);
@@ -117,7 +117,7 @@ if show_fig
     xticklabels(channels);
     xlabel('Channels');
     ylabel('Frequency [Hz]');
-    zlabel('Power [??/Hz]'); %TODO 
+    zlabel('Power [\muV^2/Hz]'); %TODO 
     title("PSD");
     legend("rest","task",'ItemHitFcn',@show_hide_graph);
     view(37, 69);
@@ -151,7 +151,7 @@ if show_fig
     title('EEG '+c_show);
     xlabel("Time");
     xlim([0, max([t_task, t_task_rs])])
-    ylabel("Amplitude"); %TODO
+    ylabel("Amplitude [\muV]"); %TODO
 
     legend("original", "resampled",'ItemHitFcn',@show_hide_graph);
 end
@@ -211,7 +211,7 @@ if show_fig
     xticklabels(channels);
     xlabel('Channels');
     ylabel('Frequency [Hz]');
-    zlabel('Power [??/Hz]'); %TODO
+    zlabel('Power [\muV^2/Hz]'); %TODO
     legend("rest","task",'ItemHitFcn',@show_hide_graph);
     title("PSD of resampled")
     view(37, 69);
@@ -237,10 +237,8 @@ lim_theta = [4,  8];
 lim_alpha = [8, 13];
 lim_beta  = [13, 30];
 overlap = floor(l_wind_rs*0.5);
-
-%TODO: si puo fare in modo diverso?
-[tmp ,fp] = pwelch(resample_band_1.(channels{1}){s,1},rect_w,overlap,[],fs_new);
-len_welch = numel(tmp);
+nfft = 2^ceil(log2(l_wind_rs));
+len_welch = nfft/2+1;
 
 for c = 1 : N_chan
     PSD_rest.(channels{c}) = zeros(N_sub, numel(bands), len_welch);
