@@ -2,6 +2,9 @@
 
 clear; close all; clc;
 
+show_fig = false; % set to true to show all the figures
+subj_show = 1; % subject to show when show_fig = true
+chan_show = "FP1"; % channel to show when show_fig = true;
 datafolder='Data\';
 % Palace here your files
 flist_1 = dir([datafolder,'Subject0*_1.mat']); % baseline has 91000 samples 
@@ -30,27 +33,6 @@ end
 channels = fieldnames(subj_task); % available channels 
 N_chan = numel(channels); % Number of available channels
 
-% set to true to show all the figures
-prompt = {'Do you want to view the figures? [y/n]'};
-dlgtitle = 'Figure';
-show_fig = ((upper(inputdlg(prompt,dlgtitle))) == "Y");
-
-if show_fig
-    % subject to show when show_fig = true
-    subj_show = 0;
-    while subj_show <=0 || subj_show > N_sub
-        prompt = {'Select subject (number from 1 to '+string(N_sub)+ '): '};
-        dlgtitle = 'Subject';
-        subj_show = str2double(inputdlg(prompt,dlgtitle));
-    end
-    % channel to show when show_fig = true;
-    chan_show = 'ZZ';
-    while size(find(strcmp(channels,chan_show)),1) == 0
-        prompt = {'Select a channel (e.g. F3): '};
-        dlgtitle = 'Channel';
-        chan_show = cell2mat(upper(inputdlg(prompt,dlgtitle)));
-    end
-end
 
 %% View signal and fft
 % pre-processing already performed:
@@ -73,12 +55,14 @@ if show_fig
     hold on
     plot(t_rest, abs(fft(subj_rest(subj_show).(c_show))));
     plot(t_task, abs(fft(subj_task(subj_show).(c_show))));
-    title('FFT EEG '+ string(c_show));
+    title('FFT EEG '+c_show);
     xlabel("Frequency [Hz]");
     ylabel("Amplitude [\muV^2/Hz]"); %TODO
     xlim([0,fn])
 
     legend("rest","task",'ItemHitFcn',@show_hide_graph);
+
+    helpdlg("Click the legend to hide/show a graph");
 end
 
 %% PSD all signal
@@ -164,7 +148,7 @@ if show_fig
     hold on
     plot(t_rest, subj_rest(subj_show).(c_show))
     plot(t_rest_rs, EEG_rest_rs(subj_show).(c_show))
-    title('EEG '+ string(c_show));
+    title('EEG '+c_show);
     xlabel("Time");
     xlim([0, max([t_task, t_task_rs])])
     ylabel("Amplitude [\muV]"); %TODO
@@ -172,7 +156,7 @@ if show_fig
     legend("original", "resampled",'ItemHitFcn',@show_hide_graph);
 end
 
-%uncomment to resave baseline
+% uncomment to resave baseline
 % tmp = EEG_rest_rs(1).C3;
 % save("Data\baseline_resampled.mat", 'tmp');
 
@@ -181,7 +165,7 @@ clear subj_rest subj_task t_rest t_task;
 
 %% PSD all resampled signal
 lim = [0, fcut];
-l_wind_rs = fs_new * 5; % number of seconds
+l_wind_rs = fs_new * 10;
 rect_w = rectwin(l_wind_rs);
 
 for c = 1 : N_chan
@@ -299,11 +283,6 @@ band_coefficients= struct('theta1',  filter_theta1.Coefficients, ...
 
 [signal_sub_band_1, signal_sub_band_2] = Band_sub(band_coefficients, fs_new, fs);
 
-if show_fig
-    figure('Name', 'Beta1 filter')
-    freqz(filter_beta1.Coefficients,1);
-end
-
 %% PDS selected bands
 sub_bands = ["theta1", "theta2", "beta1", "beta2"];
 N_sub_bands= numel(sub_bands);
@@ -358,6 +337,7 @@ if show_fig
         ylabel("Amplitude");
         legend("rest", "task",'ItemHitFcn',@show_hide_graph);
     end
+    clear N_sub_bands;
 end
 
 %% Area PSD by channels and selected bands
@@ -379,11 +359,9 @@ median_task = median(area_task,1);
 %% Topoplot of median area in selected channels and band
 
 % Ordering channels in case are shuffled
-load("Data\chanlocs.mat")
-[~, idx] = sort({chanlocs(1:19).labels});
+[~, idx] = sort(channels);
 chanlocs = chanlocs(idx);
 
-cd("helper_code")
 for b = 1:N_sub_bands
     figure('Name', sub_bands(b));
     subplot(1,2,1)
@@ -393,9 +371,9 @@ for b = 1:N_sub_bands
     title("Task")
     topoplot(median_task(:,:,b), chanlocs, 'electrodes', 'labels', 'style', 'fill');
 end
-cd('..')
 
-%% Finding variation to choosen channels
+
+%% Finding variation to choose channels
 
 for b = 1:N_sub_bands
     fprintf("\n\nBand name: %s", sub_bands(b));
@@ -423,7 +401,7 @@ end
 
 %% Selected channels
 
-chan_choosen_names = ["CZ", "F7", "FP2", "O2", "P3"];
+chan_choosen_names = ["F3", "F8", "FP1", "O2"];
 N_chan_ch = numel(chan_choosen_names);
 chan_choosen = ones(N_chan_ch)*-1;
 
@@ -446,17 +424,16 @@ for c = 1:N_chan_ch
 end
 
 %% Save median into a tabel
-arraytable = zeros(size(median_rest_ch, 2),size(median_rest_ch, 3)*2);
+arraytable = zeros(size(median_rest_ch, 3),size(median_rest_ch, 3)*2);
 for b=1:size(median_rest_ch, 3)
     arraytable(:,b*2-1) = median_rest_ch(:,:,b);
     arraytable(:,b*2) = median_task_ch(:,:,b);
 end
 
-variablesNames = ["Channels", reshape([sub_bands; sub_bands], 1, 2*N_sub_bands)+repmat({'_rest', '_task'}, 1, N_sub_bands)];
-tableData = array2table([chan_choosen_names', arraytable], 'VariableNames', variablesNames);
+variablesNames = reshape([sub_bands; sub_bands], 1, 2*N_sub_bands)+repmat({'_rest', '_task'}, 1, N_sub_bands);
+tableData = array2table(arraytable, 'VariableNames', variableNames);
 
-writetable(tableData, 'Medians_Table.xlsx');
-
+writetable(tableData, 'Medians_Table.xlsx')
 %% Plot results in scatter
 
 inc = 0.2;
@@ -467,52 +444,48 @@ X_ticks(1) = X_ticks(1) + inc/2;
 for i = 2:N_sub_bands
     X_ticks(i) = X_ticks(i) + (i-1)*mul + inc/2;
 end
-for c = 1:N_chan_ch
-    mul = 0.5;
-    ch = chan_choosen(c);
-    figure('Name', "Scatter channel "+chan_choosen_names(c))
-    hold on
-    o_flag = false; % outview flag 
-    for i = 1:N_sub_bands %TODO: figura con i filtri ottennuti(non qui, in generale)
-        mul = mul + 0.5;
-        r = scatter(mul*ones(1,N_sub), area_rest(:,ch,i),"blue", 'filled');
-        outview_rest = find(area_rest(:,ch,i) > y_lim);
+if show_fig==1
+    for c = 1:N_chan_ch
+        mul = 0.5;
+        ch = chan_choosen(c);
+        figure('Name', "Scatter channel "+chan_choosen_names(c))
+        hold on
+        o_flag = false; % outliers flag 
+        for i = 1:N_sub_bands %TODO: figura con i filtri ottennuti(non qui, in generale)
+            mul = mul + 0.5;
+            r = scatter(mul*ones(1,N_sub), area_rest(:,ch,i),"blue", 'filled');
+            outliers_rest = find(area_rest(:,ch,i) > y_lim);
+    
+            t = scatter((mul+inc)*ones(1,N_sub), area_task(:,ch,i),"red", 'filled');
+            outliers_task = find(area_task(:,ch,i) > y_lim); % TODO: va bene calcolati cosi?
+            
+            m = scatter([mul, mul+inc], [median_rest_ch(:, c,i),median_task_ch(:, c,i)], "d", "MarkerEdgeColor", "magenta");
 
-        t = scatter((mul+inc)*ones(1,N_sub), area_task(:,ch,i),"red", 'filled');
-        outview_task = find(area_task(:,ch,i) > y_lim); % TODO: va bene calcolati cosi?
-        
-        m = scatter([mul, mul+inc], [median_rest_ch(:, c,i),median_task_ch(:, c,i)], "*", "MarkerEdgeColor", "magenta");
-
-        for k = 1:numel(outview_rest)
-            o_flag = true;
-            o = scatter(mul, y_lim-k*2, "black");
-            o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_rest(outview_rest(k),ch,i));
-            o.DataTipTemplate.DataTipRows(4) = ' ';
+            for k = 1:numel(outliers_rest)
+                o_flag = true;
+                o = scatter(mul, y_lim-k*2, "black");
+                o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_rest(outliers_rest(k),ch,i));
+                o.DataTipTemplate.DataTipRows(4) = ' ';
+            end
+            for k = 1:numel(outliers_task)
+                o_flag = true;
+                o = scatter(mul+inc, y_lim-k*2, "black");
+                o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_task(outliers_task(k),ch,i));
+                o.DataTipTemplate.DataTipRows(4) = ' ';
+            end
         end
-        for k = 1:numel(outview_task)
-            o_flag = true;
-            o = scatter(mul+inc, y_lim-k*2, "black");
-            o.DataTipTemplate.DataTipRows(3) = dataTipTextRow('Actual Y', area_task(outview_task(k),ch,i));
-            o.DataTipTemplate.DataTipRows(4) = ' ';
+        xticks(X_ticks);
+        xticklabels({'\theta1', ...
+            '\theta2','\beta1', ...
+            '\beta2'});
+        xlim([X_ticks(1)-inc, X_ticks(numel(X_ticks))+inc]);
+        ylim([0, y_lim]);
+        if o_flag
+            legend([r,t,m,o], "rest", "task", "median", "outliers", "Location", "eastoutside");
+        else
+            legend([r,t,m], "rest", "task", "median",  "Location", "eastoutside");
         end
     end
-    xticks(X_ticks);
-    xticklabels({'\theta1', ...
-        '\theta2','\beta1', ...
-        '\beta2'});
-    xlim([X_ticks(1)-inc, X_ticks(numel(X_ticks))+inc]);
-    ylim([0, y_lim]);
-    if o_flag
-        legend([r,t,m,o], "rest", "task", "median", "outview", "Location", "eastoutside");
-    else
-        legend([r,t,m], "rest", "task", "median",  "Location", "eastoutside");
-    end
-end
-
-%% Helper
-
-if show_fig
-    helpdlg("In figures click the legend to hide/show a graph");
 end
 
 %% Functions
