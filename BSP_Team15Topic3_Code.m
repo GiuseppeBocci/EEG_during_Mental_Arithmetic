@@ -48,7 +48,7 @@ if show_fig
     while size(find(strcmp(channels,chan_show)),1) == 0
         prompt = {'Select a channel (e.g. F3): '};
         dlgtitle = 'Channel';
-        chan_show = cell2mat(upper(inputdlg(prompt,dlgtitle)));
+        chan_show = string(upper(inputdlg(prompt,dlgtitle)));
     end
 end
 
@@ -64,18 +64,26 @@ fn = fs/2;
 N_rest = length(subj_rest(1).C3); % 91000
 N_task = length(subj_task(1).C3); % 31000
 
-t_rest = linspace(0,fs,N_rest);
-t_task = linspace(0,fs,N_task);
+% adjust this part for your program, for us 30000 samples are 1 minute and
+% 1000 samples are additional
+additional = 1000;
+minutes_rest = 3;
+minutes_task = 1;
+over_time = additional/(60*minutes_task);
+t_rest = linspace(0, minutes_rest*60+over_time, N_rest);
+t_task = linspace(0, minutes_task*60+over_time, N_task);
+
+%% Fig EEG FFT
 
 if show_fig
     c_show = chan_show; % redefine chan_show here for this figure
     figure
     hold on
-    plot(t_rest, abs(fft(subj_rest(subj_show).(c_show))));
-    plot(t_task, abs(fft(subj_task(subj_show).(c_show))));
-    title('FFT EEG '+ string(c_show));
+    plot(linspace(0, fs, N_rest), abs(fft(subj_rest(subj_show).(c_show))));
+    plot(linspace(0, fs, N_task), abs(fft(subj_task(subj_show).(c_show))));
+    title('FFT EEG rest '+c_show);
     xlabel("Frequency [Hz]");
-    ylabel("Amplitude [\muV^2/Hz]"); %TODO
+    ylabel("Amplitude [\muV^2/Hz]");
     xlim([0,fn])
 
     legend("rest","task",'ItemHitFcn',@show_hide_graph);
@@ -90,7 +98,6 @@ rect_w = rectwin(l_wind);
 for ch = 1 : N_chan
     [PSDp_rest_1.(channels{ch}),fp_rest] = pwelch(subj_rest(1).(channels{ch}), rect_w, noverlap, [], fs);
     [PSDp_task_1.(channels{ch}),fp_task] = pwelch(subj_task(1).(channels{ch}), rect_w, noverlap, [], fs);
-    
 end
 
 PSDp_rest = repmat(PSDp_rest_1, 1, N_sub);
@@ -107,9 +114,11 @@ for ch = 1 : N_chan
     end
 end
 
+%% waterfall fig PSD all signal
+
 if show_fig
-    c_show = chan_show; % redefine chan_show here for this figure
-    
+    % The signals are cut just in the view, but they can be mooved around
+    % for a better or specific view
     figure
     hold on
     xi = repmat((1:N_chan)', 1,numel(fp_rest))*3;
@@ -157,6 +166,8 @@ for s = 1 : N_sub
     end
 end
 
+%% Fig original and resampled EEG
+
 if show_fig
     c_show = chan_show; % redefine chan_show here for this figure
 
@@ -164,20 +175,20 @@ if show_fig
     hold on
     plot(t_rest, subj_rest(subj_show).(c_show))
     plot(t_rest_rs, EEG_rest_rs(subj_show).(c_show))
-    title('EEG '+ string(c_show));
-    xlabel("Time");
-    xlim([0, max([t_task, t_task_rs])])
-    ylabel("Amplitude [\muV]"); %TODO
+    title('EEG rest '+c_show);
+    xlabel("Time [s]");
+    xlim([0, max([t_rest, t_rest_rs])]);
+    ylabel("Amplitude [\muV]");
 
     legend("original", "resampled",'ItemHitFcn',@show_hide_graph);
 end
 
-%uncomment to resave baseline
+% uncomment to resave baseline
 % tmp = EEG_rest_rs(1).C3;
 % save("Data\baseline_resampled.mat", 'tmp');
 
 % No needed anymore
-clear subj_rest subj_task t_rest t_task;
+% clear subj_rest subj_task t_rest t_task;
 
 %% PSD all resampled signal
 lim = [0, fcut];
@@ -201,9 +212,9 @@ for c = 1 : N_chan
     end
 end
 
-if show_fig
-    c_show = chan_show; % redefine chan_show here for this figure
-    
+%% Fig waterfall PSD resampled
+
+if show_fig    
     figure
     hold on
     xi = repmat((1:N_chan)', 1,numel(fp_rest_rs))*3;
@@ -248,10 +259,10 @@ band_coefficients= struct('delta',  filter_delta.Coefficients, ...
 
 %% PDS standard bands
 bands = ["delta", "theta", "alpha", "beta"];
-lim_delta = [0.5, 4];
-lim_theta = [4,  8];
-lim_alpha = [8, 13];
-lim_beta  = [13, 30];
+% lim_delta = [0.5, 4];
+% lim_theta = [4,  8];
+% lim_alpha = [8, 13];
+% lim_beta  = [13, 30];
 overlap = floor(l_wind_rs*0.5);
 nfft = 2^ceil(log2(l_wind_rs));
 len_welch = nfft/2+1;
@@ -269,6 +280,8 @@ for c = 1 : N_chan
         end
     end
 end
+
+%% Fig PDS standard bands
 
 if show_fig
     c_show = chan_show; % redefine chan_show here for this figure
@@ -333,6 +346,8 @@ for c = 1 : N_chan
     end
 end
 
+%% Fig PDS selected bands 
+
 if show_fig
     c_show = chan_show; % redefine chan_show here for this figure
 
@@ -350,9 +365,9 @@ if show_fig
     end
     for b = 1 : 2
         subplot(N_sub_bands, 1, b+2);
-        plot(f_b_rest, squeeze(PSD_rest_theta.(c_show)(subj_show,b,:)));
+        plot(f_b_rest, squeeze(PSD_rest_beta.(c_show)(subj_show,b,:)));
         hold on
-        plot(f_b_task, squeeze(PSD_task_theta.(c_show)(subj_show,b,:)));
+        plot(f_b_task, squeeze(PSD_task_beta.(c_show)(subj_show,b,:)));
         title('PSD '+sub_bands(b+2));
         xlabel("Frequency [Hz]");
         ylabel("Amplitude");
@@ -383,17 +398,16 @@ load("Data\chanlocs.mat")
 [~, idx] = sort({chanlocs(1:19).labels});
 chanlocs = chanlocs(idx);
 
-cd("helper_code")
 for b = 1:N_sub_bands
     figure('Name', sub_bands(b));
     subplot(1,2,1)
     title("Rest")
+    
     topoplot(median_rest(:,:,b), chanlocs, 'electrodes', 'labels', 'style', 'fill');
     subplot(1,2,2)
     title("Task")
     topoplot(median_task(:,:,b), chanlocs, 'electrodes', 'labels', 'style', 'fill');
 end
-cd('..')
 
 %% Finding variation to choosen channels
 
