@@ -1,5 +1,5 @@
 # EEG during Mental Arithmetic
-This repository contains the project of **analysis on EEG during mental arithemetic** produced for the Biomedical Signal Processing module of the course BIOMEDICAL SIGNAL PROCESSING AND MEDICAL IMAGES taught by prof. Signorini Maria Gabriella and Steyde Giulio at "Politecnico di Milano" A.Y. 2023/2024.
+This repository contains the project of **analysis on EEG during mental arithemetic** produced for the Biomedical Signal Processing module of the course BIOMEDICAL SIGNAL PROCESSING AND MEDICAL IMAGES taught by prof. Signorini Maria Gabriella and PHD Steyde Giulio at "Politecnico di Milano" A.Y. 2023/2024.
 
 ## How to use this application
 To 
