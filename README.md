@@ -18,9 +18,9 @@ All the pre-processing, the anlysis, and the plotting was carried out through Ma
 For more details and results see [here](docs\abstract.md)
 
 ## How to use this application
-1. Add your subjects files to [Data](Data\) as `SubjectXX_1.mat` and `SubjectXX_2.mat` where 'XX' rapresent the number of the subject,'_1' the rest file, and '_2' the task file.
+1. Add your subjects files to [Data](Data\) as `SubjectXX_1.mat` and `SubjectXX_2.mat` where `XX` rapresent the number of the subject, `_1` the rest file, and `_2` the task file.
 2. If needed use [filter_creation.m](filter_creation.m) to remake automatically the filters for the different subbands. 
-3. Run the [main script](main.m) to performe the analysis and show results
+3. Run the [main script](main.m) to performe the analysis and show results.
 
 ## References
 1. Zyma I, Tukaev S, Seleznov I, Kiyono K, Popov A, Chernykh M,
