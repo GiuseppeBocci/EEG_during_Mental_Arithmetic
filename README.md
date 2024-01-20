@@ -15,7 +15,7 @@ Our group amimed to discern the two state of the subject: the resting state and 
 ## Methods
 The analysis was peformed chooseing as feature the area of the Potenrial Spectrum Density(PSD) curve in the theta1, theta2, beta1, and beta2 bands for the CZ, F7, FP2, O2, and P3 EEG channels.
 All the pre-processing, the anlysis, and the plotting was carried out through Matlab and for the EEG topoplot was used EEGLab.
-For more details and results see [here](docs\abstract.md).
+For more details and results see [here](docs/abstract.md).
 
 ## How to use this application
 1. Add your subjects files to [Data](Data) as `SubjectXX_1.mat` and `SubjectXX_2.mat` where `XX` rapresent the number of the subject, `_1` the rest file, and `_2` the task file.
